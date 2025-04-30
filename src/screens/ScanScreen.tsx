@@ -3,13 +3,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, useCameraDevice, useCameraFormat, useCameraPermission } from 'react-native-vision-camera'
 import { CONTENT_SPACING, CONTROL_BUTTON_SIZE, MAX_ZOOM_FACTOR, SAFE_AREA_PADDING, SCREEN_HEIGHT, SCREEN_WIDTH } from './constant'
 import { usePreferredCameraDevice } from './hooks/usePreferredCameraDevice'
-import { useIsFocused } from '@react-navigation/native'
-import { useIsForeground } from './hooks/example/src/hooks/useIsForeground'
-import { PressableOpacity } from 'react-native-pressable-opacity'
+import { useIsFocused, useNavigation } from '@react-navigation/native'
+import { useIsForeground } from './hooks/useIsForeground'
+import TakePhotoButton from '../components/TakePhotoButton'
 
 export default function ScanScreen() {
   const { hasPermission } = useCameraPermission()
-  const camera = useRef<Camera>(null)
+  const cameraRef = useRef<Camera>(null)
   const isFocused = useIsFocused()
   const isForeground = useIsForeground()
   const isActive = isFocused && isForeground
@@ -43,6 +43,8 @@ export default function ScanScreen() {
   const minZoom = device?.minZoom ?? 1
   const maxZoom = Math.min(device?.maxZoom ?? 1, MAX_ZOOM_FACTOR)
 
+  const navigation = useNavigation()
+
   useEffect(() => {
     Camera.requestCameraPermission();
   }, []);
@@ -66,24 +68,32 @@ export default function ScanScreen() {
     )
   }
 
+  const handleTakePhoto = async () => {
+    if (!cameraRef.current) {
+      console.warn('Camera not ready or ref not available');
+      return;
+    };
+    try {
+      const photo = await cameraRef.current.takePhoto()
+      console.log('Photo taken:', photo.path);
+      const photoPath = `${Platform.OS === 'android' ? 'file://' : ''}${photo.path}`;
+      navigation.navigate('Result', { photoPath });
+    } catch (error) {
+      
+    }
+    
+  }
+
   return (
     <>
       <Camera
+        ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={true}
+        isActive={isActive}
         photo={true}
       />
-      {/* Capture Button */}
-      <View style={{ bottom: SAFE_AREA_PADDING.paddingBottom + 20 }} className="absolute w-full items-center">
-        <PressableOpacity
-          className={`w-[70px] h-[70px] rounded-full border-[3px] ${isActive ? 'bg-white/40 border-white' : 'bg-gray-400/40 border-gray-400'} justify-center items-center`}
-          disabled={!isActive}
-          disabledOpacity={0.6}
-        >
-          <View className="w-[58px] h-[58px] rounded-full bg-white" />
-        </PressableOpacity>
-      </View>
+      <TakePhotoButton onPress={handleTakePhoto} />
     </>
   )
 }
